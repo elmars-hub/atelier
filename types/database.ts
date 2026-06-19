@@ -50,7 +50,7 @@ export type ProductVariant = {
   product_id: string;
   color_name: string;
   color_hex: string;
-  image_url: string;
+  image_url: string | null;
   is_default: boolean;
   material: string | null;
   finish: string | null;
@@ -287,7 +287,7 @@ export type Database = {
           product_id: string;
           color_name: string;
           color_hex: string;
-          image_url: string;
+          image_url?: string | null;
           is_default?: boolean;
           material?: string | null;
           finish?: string | null;
@@ -302,7 +302,7 @@ export type Database = {
           product_id?: string;
           color_name?: string;
           color_hex?: string;
-          image_url?: string;
+          image_url?: string | null;
           is_default?: boolean;
           material?: string | null;
           finish?: string | null;
@@ -582,4 +582,24 @@ export type Database = {
       [_ in never]: never;
     };
   };
+};
+
+// ==========================================
+// Shared API Types
+// ==========================================
+
+export type PaginatedResponse<T> = {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+};
+
+export type AuthUser = {
+  id: string;
+  email: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  isAdmin: boolean;
+  role: string | null;
 };

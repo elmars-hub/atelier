@@ -17,12 +17,14 @@ export async function getSpecifications(productId: string) {
   return data ?? [];
 }
 
-export async function createSpecification(input: CreateProductSpecificationInput) {
+export async function createSpecification(
+  input: CreateProductSpecificationInput,
+) {
   const supabase = createAdminClient();
 
   const { data, error } = await supabase
     .from(TABLE)
-    .insert(input)
+    .insert(input as never)
     .select()
     .single();
 
@@ -31,7 +33,10 @@ export async function createSpecification(input: CreateProductSpecificationInput
   return data;
 }
 
-export async function updateSpecification(id: string, input: Partial<CreateProductSpecificationInput>) {
+export async function updateSpecification(
+  id: string,
+  input: Partial<CreateProductSpecificationInput>,
+) {
   const supabase = createAdminClient();
 
   const { data, error } = await supabase

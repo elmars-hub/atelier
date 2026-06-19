@@ -1,5 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { CreateVariantInput, UpdateVariantInput } from "@/lib/validations/variants";
+import type {
+  CreateVariantInput,
+  UpdateVariantInput,
+} from "@/lib/validations/variants";
 
 const TABLE = "product_variants";
 
@@ -36,7 +39,7 @@ export async function createVariant(input: CreateVariantInput) {
 
   const { data, error } = await supabase
     .from(TABLE)
-    .insert(input)
+    .insert(input as never)
     .select()
     .single();
 
