@@ -31,6 +31,26 @@ export const POST = withUserRoute(
       return errorResponse("You have already reviewed this product", 409);
     }
 
+    const { data: purchasedItems } = await supabase
+      .from("order_items")
+      .select(
+        `
+        id,
+        orders!inner (id, status)
+      `,
+      )
+      .eq("product_id", parsed.data.product_id)
+      .eq("orders.user_id", auth.user.id)
+      .in("orders.status", [
+        "confirmed",
+        "payment_verified",
+        "preparing",
+        "in_transit",
+        "delivered",
+      ]);
+
+    const isVerifiedPurchase = (purchasedItems?.length ?? 0) > 0;
+
     const { data, error } = await supabase
       .from("reviews")
       .insert({
@@ -38,6 +58,7 @@ export const POST = withUserRoute(
         product_id: parsed.data.product_id,
         rating: parsed.data.rating,
         comment: parsed.data.comment ?? null,
+        is_verified_purchase: isVerifiedPurchase,
       })
       .select()
       .single();

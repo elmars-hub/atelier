@@ -23,15 +23,14 @@ export async function GET() {
       .eq("user_id", user.id)
       .single();
 
-    const fullName =
-      (user.user_metadata?.full_name as string | undefined) ??
-      (user.user_metadata?.name as string | undefined) ??
-      null;
+    const { data: profile } = await adminSupabase
+      .from("profiles")
+      .select("full_name, phone, avatar_url")
+      .eq("id", user.id)
+      .single();
 
-    const avatarUrl =
-      (user.user_metadata?.avatar_url as string | undefined) ??
-      (user.user_metadata?.picture as string | undefined) ??
-      null;
+    const fullName = profile?.full_name ?? null;
+    const avatarUrl = profile?.avatar_url ?? null;
 
     return jsonResponse({
       user: {
