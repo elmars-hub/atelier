@@ -69,6 +69,17 @@ export type ProductImage = {
   created_at: string;
 };
 
+export type Profile = {
+  id: string;
+  email: string;
+  full_name: string | null;
+  phone: string | null;
+  avatar_url: string | null;
+  date_of_birth: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type ProductSpecification = {
   id: string;
   product_id: string;
@@ -93,6 +104,16 @@ export type Wishlist = {
   user_id: string;
   product_id: string;
   created_at: string;
+};
+
+export type CartItem = {
+  id: string;
+  user_id: string;
+  variant_id: string;
+  product_id: string;
+  quantity: number;
+  created_at: string;
+  updated_at: string;
 };
 
 export type OrderStatus =
@@ -198,6 +219,36 @@ export type Database = {
           {
             foreignKeyName: "admin_users_user_id_fkey";
             columns: ["user_id"];
+            isOneToOne: true;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      profiles: {
+        Row: Profile;
+        Insert: {
+          id: string;
+          email: string;
+          full_name?: string | null;
+          phone?: string | null;
+          avatar_url?: string | null;
+          date_of_birth?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          email?: string;
+          full_name?: string | null;
+          phone?: string | null;
+          avatar_url?: string | null;
+          date_of_birth?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "profiles_id_fkey";
+            columns: ["id"];
             isOneToOne: true;
             referencedRelation: "users";
             referencedColumns: ["id"];
@@ -409,6 +460,56 @@ export type Database = {
             columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "reviews_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      cart_items: {
+        Row: CartItem;
+        Insert: {
+          id?: string;
+          user_id: string;
+          variant_id: string;
+          product_id: string;
+          quantity?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          variant_id?: string;
+          product_id?: string;
+          quantity?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "cart_items_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "cart_items_variant_id_fkey";
+            columns: ["variant_id"];
+            isOneToOne: false;
+            referencedRelation: "product_variants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "cart_items_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
             referencedColumns: ["id"];
           },
         ];

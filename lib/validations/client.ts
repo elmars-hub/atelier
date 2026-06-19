@@ -9,7 +9,7 @@ export const orderItemSchema = z.object({
   quantity: z.number().int().positive(),
 });
 
-export const checkoutSchema = z.object({
+const checkoutBaseSchema = z.object({
   items: z.array(orderItemSchema).min(1, "Cart cannot be empty"),
   shipping_address: z.object({
     full_name: z.string().min(2),
@@ -21,6 +21,13 @@ export const checkoutSchema = z.object({
     country: z.string().min(2),
     phone: z.string().optional(),
   }),
+  shipping_method: z.enum(["standard", "express"]).default("standard"),
+});
+
+export const paymentIntentSchema = checkoutBaseSchema;
+
+export const checkoutSchema = checkoutBaseSchema.extend({
+  payment_intent_id: z.string().min(1, "Payment intent is required"),
 });
 
 export type WishlistInput = z.infer<typeof wishlistSchema>;
@@ -47,6 +54,7 @@ export const updateProfileSchema = z.object({
   full_name: z.string().min(2).max(100).optional(),
   phone: z.string().max(30).nullable().optional(),
   avatar_url: z.string().url().nullable().optional(),
+  date_of_birth: z.string().nullable().optional(),
 });
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;

@@ -21,7 +21,8 @@ export const POST = withUserRoute(
     const parsed = await parseBody(request, checkoutSchema);
     if (parsed.error) return parsed.error;
 
-    const { items, shipping_address } = parsed.data;
+    const { items, shipping_address, shipping_method, payment_intent_id } =
+      parsed.data;
 
     const supabase = createAdminClient();
 
@@ -88,7 +89,9 @@ export const POST = withUserRoute(
       });
     }
 
-    const shipping_cost = subtotal > 150 ? 0 : 15;
+    const isExpress = shipping_method === "express";
+    const standardCost = subtotal > 150 ? 0 : 15;
+    const shipping_cost = isExpress ? 30 : standardCost;
     const tax = subtotal * 0.08;
     const total = subtotal + shipping_cost + tax;
 
@@ -99,12 +102,13 @@ export const POST = withUserRoute(
       .insert({
         user_id: auth.user.id,
         order_number: orderNumber,
-        status: "pending",
+        status: "payment_verified",
         subtotal,
         shipping_cost,
         tax,
         total,
         shipping_address,
+        stripe_payment_intent_id: payment_intent_id,
       })
       .select("id")
       .single();
@@ -141,6 +145,13 @@ export const POST = withUserRoute(
         console.error("[Stock Decrement Error]", stockError);
       }
     }
+
+    const checkedVariantIds = items.map((i) => i.variant_id);
+    await supabase
+      .from("cart_items")
+      .delete()
+      .eq("user_id", auth.user.id)
+      .in("variant_id", checkedVariantIds);
 
     return jsonResponse(
       { success: true, order_id: order.id, order_number: orderNumber },
