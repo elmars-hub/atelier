@@ -80,7 +80,7 @@ export async function requireAdmin(): Promise<
 
   const { data: adminUser, error: adminError } = await createAdminClient()
     .from("admin_users")
-    .select("*")
+    .select("id, user_id, role")
     .eq("user_id", user.id)
     .single();
 
@@ -108,6 +108,18 @@ export type PaginationParams = {
   order: "asc" | "desc";
 };
 
+const ALLOWED_SORT_COLUMNS = new Set([
+  "created_at",
+  "updated_at",
+  "name",
+  "price",
+  "total",
+  "status",
+  "display_order",
+  "rating",
+  "popular",
+]);
+
 export function parsePagination(
   searchParams: URLSearchParams,
   defaults: { sort?: string; limit?: number } = {},
@@ -120,7 +132,12 @@ export function parsePagination(
       parseInt(searchParams.get("limit") || String(defaults.limit ?? 20), 10),
     ),
   );
-  const sort = searchParams.get("sort") || defaults.sort || "created_at";
+  const requestedSort = searchParams.get("sort");
+  const defaultSort = defaults.sort ?? "created_at";
+  const sort =
+    requestedSort && ALLOWED_SORT_COLUMNS.has(requestedSort)
+      ? requestedSort
+      : defaultSort;
   const rawOrder = searchParams.get("order");
   const order: "asc" | "desc" =
     rawOrder === "asc" || rawOrder === "desc" ? rawOrder : "desc";

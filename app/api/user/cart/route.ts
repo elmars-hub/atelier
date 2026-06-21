@@ -98,9 +98,10 @@ export const POST = withUserRoute(
       .single();
 
     if (existing) {
+      const newQuantity = Math.min(existing.quantity + quantity, 99);
       const { data, error } = await supabase
         .from("cart_items")
-        .update({ quantity: existing.quantity + quantity })
+        .update({ quantity: newQuantity })
         .eq("id", existing.id)
         .select()
         .single();

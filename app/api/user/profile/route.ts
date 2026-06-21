@@ -47,7 +47,6 @@ export const PATCH = withUserRoute(
       .update({
         full_name: parsed.data.full_name,
         phone: parsed.data.phone,
-        avatar_url: parsed.data.avatar_url,
         date_of_birth: parsed.data.date_of_birth,
       })
       .eq("id", auth.user.id)

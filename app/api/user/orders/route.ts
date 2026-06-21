@@ -4,12 +4,14 @@ import {
   jsonResponse,
   errorResponse,
   parseBody,
+  parsePagination,
   withUserRoute,
   type UserAuth,
 } from "@/lib/api-utils";
 import type { Insert } from "@/types/database";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getStripe } from "@/lib/stripe/server";
 import crypto from "crypto";
 
 export const POST = withUserRoute(
@@ -24,7 +26,41 @@ export const POST = withUserRoute(
     const { items, shipping_address, shipping_method, payment_intent_id } =
       parsed.data;
 
+    // ── Verify Stripe payment intent ─────────────────────────────────────────
+    const stripe = getStripe();
+    let pi;
+    try {
+      pi = await stripe.paymentIntents.retrieve(payment_intent_id);
+    } catch {
+      return errorResponse("Invalid payment intent", 400);
+    }
+
+    if (pi.status !== "succeeded") {
+      return errorResponse(
+        "Payment has not been completed. Please complete payment first.",
+        402,
+      );
+    }
+
+    if (pi.metadata?.user_id !== auth.user.id) {
+      return errorResponse("Payment intent does not belong to this user", 403);
+    }
+
     const supabase = createAdminClient();
+
+    // Guard against re-using the same payment intent for two orders
+    const { data: existingOrder } = await supabase
+      .from("orders")
+      .select("id")
+      .eq("stripe_payment_intent_id", payment_intent_id)
+      .maybeSingle();
+
+    if (existingOrder) {
+      return errorResponse(
+        "This payment has already been used for an order",
+        409,
+      );
+    }
 
     const variantIds = items.map((item) => item.variant_id);
     const { data: dbVariants, error: fetchError } = await supabase
@@ -47,6 +83,12 @@ export const POST = withUserRoute(
       `,
       )
       .in("id", variantIds);
+
+    // Deduplicate variant IDs to prevent double-counting
+    const uniqueVariantIds = [...new Set(variantIds)];
+    if (uniqueVariantIds.length !== variantIds.length) {
+      return errorResponse("Duplicate items in cart are not allowed", 400);
+    }
 
     if (fetchError || !dbVariants || dbVariants.length !== variantIds.length) {
       return errorResponse(
@@ -129,21 +171,39 @@ export const POST = withUserRoute(
 
     if (itemsError) {
       console.error("[Checkout Items Error]", itemsError);
+      // Compensating transaction: delete orphaned order
+      await supabase.from("orders").delete().eq("id", order.id);
       return errorResponse("Failed to save order items", 500);
     }
 
+    // ── Atomic stock decrement (race-condition safe) ─────────────────────────
+    // .gte("stock_quantity", qty) makes the WHERE clause and the write atomic
+    // at the Postgres row level — if another checkout decremented stock first,
+    // this update matches 0 rows and maybeSingle() returns null.
+    const stockErrors: string[] = [];
     for (const item of items) {
-      const dbVariant = dbVariants.find((v) => v.id === item.variant_id);
-      const newStock = dbVariant!.stock_quantity - item.quantity;
-
-      const { error: stockError } = await supabase
+      const dbVariant = dbVariants.find((v) => v.id === item.variant_id)!;
+      const { data: decremented } = await supabase
         .from("product_variants")
-        .update({ stock_quantity: Math.max(0, newStock) })
-        .eq("id", item.variant_id);
+        .update({ stock_quantity: dbVariant.stock_quantity - item.quantity })
+        .eq("id", item.variant_id)
+        .gte("stock_quantity", item.quantity)
+        .select("id")
+        .maybeSingle();
 
-      if (stockError) {
-        console.error("[Stock Decrement Error]", stockError);
+      if (!decremented) {
+        stockErrors.push(dbVariant.color_name ?? item.variant_id);
       }
+    }
+
+    if (stockErrors.length > 0) {
+      // Compensating transaction: clean up order + items so nothing is orphaned
+      await supabase.from("order_items").delete().eq("order_id", order.id);
+      await supabase.from("orders").delete().eq("id", order.id);
+      return errorResponse(
+        `Items ran out of stock during checkout: ${stockErrors.join(", ")}. Please review your cart.`,
+        409,
+      );
     }
 
     const checkedVariantIds = items.map((i) => i.variant_id);
@@ -167,20 +227,31 @@ export const GET = withUserRoute(
     auth: UserAuth,
   ) => {
     const supabase = await createClient();
+    const pagination = parsePagination(request.nextUrl.searchParams, {
+      limit: 20,
+      sort: "created_at",
+    });
 
-    const { data, error } = await supabase
+    const { data, error, count } = await supabase
       .from("orders")
       .select(
         `
         *,
         order_items (*)
       `,
+        { count: "exact" },
       )
       .eq("user_id", auth.user.id)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .range(pagination.offset, pagination.offset + pagination.limit - 1);
 
     if (error) return errorResponse("Failed to fetch orders", 500);
 
-    return jsonResponse(data);
+    return jsonResponse({
+      data,
+      total: count ?? 0,
+      page: pagination.page,
+      limit: pagination.limit,
+    });
   },
 );

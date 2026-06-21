@@ -17,17 +17,18 @@ export async function GET() {
 
     const adminSupabase = createAdminClient();
 
-    const { data: adminUser } = await adminSupabase
-      .from("admin_users")
-      .select("role")
-      .eq("user_id", user.id)
-      .single();
-
-    const { data: profile } = await adminSupabase
-      .from("profiles")
-      .select("full_name, phone, avatar_url")
-      .eq("id", user.id)
-      .single();
+    const [{ data: adminUser }, { data: profile }] = await Promise.all([
+      adminSupabase
+        .from("admin_users")
+        .select("role")
+        .eq("user_id", user.id)
+        .single(),
+      adminSupabase
+        .from("profiles")
+        .select("full_name, avatar_url")
+        .eq("id", user.id)
+        .single(),
+    ]);
 
     const fullName = profile?.full_name ?? null;
     const avatarUrl = profile?.avatar_url ?? null;

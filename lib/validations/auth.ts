@@ -1,5 +1,39 @@
 import { z } from "zod";
 
+// ── UI form schemas (client-side only) ──────────────────────────────────────
+
+const nameField = (label: string) =>
+  z
+    .string()
+    .min(1, `${label} is required`)
+    .max(50, `${label} is too long`)
+    .regex(/^[a-zA-Z\s'\-]+$/, `${label} contains invalid characters`);
+
+export const signUpFormSchema = z.object({
+  first_name: nameField("First name"),
+  last_name: nameField("Last name"),
+  email: z.string().email("Invalid email address"),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .max(72, "Password is too long"),
+  agree_terms: z
+    .boolean()
+    .refine((v) => v === true, "You must agree to the terms & conditions"),
+});
+
+export type SignUpFormInput = z.infer<typeof signUpFormSchema>;
+
+export const signInFormSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(1, "Password is required"),
+  remember_me: z.boolean().optional(),
+});
+
+export type SignInFormInput = z.infer<typeof signInFormSchema>;
+
+// ── API schemas (server-side) ────────────────────────────────────────────────
+
 export const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),

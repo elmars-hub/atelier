@@ -34,6 +34,9 @@ export const PATCH = withUserRoute(
       .single();
 
     if (error) {
+      if (error.code === "PGRST116") {
+        return errorResponse("Review not found or not yours", 404);
+      }
       return errorResponse("Failed to update review", 500);
     }
 

@@ -53,8 +53,11 @@ export type UpdateReviewInput = z.infer<typeof updateReviewSchema>;
 export const updateProfileSchema = z.object({
   full_name: z.string().min(2).max(100).optional(),
   phone: z.string().max(30).nullable().optional(),
-  avatar_url: z.string().url().nullable().optional(),
-  date_of_birth: z.string().nullable().optional(),
+  date_of_birth: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
+    .nullable()
+    .optional(),
 });
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;

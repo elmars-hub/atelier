@@ -20,8 +20,19 @@ export const POST = withUserRoute(
       return errorResponse("File is required", 400);
     }
 
-    if (!file.type.startsWith("image/")) {
-      return errorResponse("File must be an image", 400);
+    const ALLOWED_MIME_TYPES: Record<string, string> = {
+      "image/jpeg": "jpg",
+      "image/png": "png",
+      "image/webp": "webp",
+      "image/gif": "gif",
+    };
+
+    const ext = ALLOWED_MIME_TYPES[file.type];
+    if (!ext) {
+      return errorResponse(
+        "Invalid file type. Allowed: JPEG, PNG, WebP, GIF",
+        400,
+      );
     }
 
     if (file.size > 5 * 1024 * 1024) {
@@ -30,14 +41,15 @@ export const POST = withUserRoute(
 
     const supabase = await createClient();
 
-    const ext = file.name.split(".").pop() ?? "jpg";
-    const filePath = `${auth.user.id}/${Date.now()}.${ext}`;
+    // Deterministic path per user — upload upserts so old files are replaced
+    // automatically rather than accumulating unbounded storage.
+    const filePath = `${auth.user.id}/avatar.${ext}`;
 
     const { error: uploadError } = await supabase.storage
       .from("avatars")
       .upload(filePath, file, {
         cacheControl: "3600",
-        upsert: false,
+        upsert: true,
       });
 
     if (uploadError) {
